@@ -199,7 +199,10 @@ public class CompressedXmlParser {
      */
     private void parseResourceTable() {
         int chunk = getLEWord(mParserOffset + (1 * WORD_SIZE));
-        mResCount = (chunk / 4) - 2;
+        mResCount = (chunk / 4);
+        if (mResCount != 0) {
+            mResCount -= 2;
+        }
 
         mResourcesIds = new int[mResCount];
         for (int i = 0; i < mResCount; ++i) {
