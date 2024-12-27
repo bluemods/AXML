@@ -2,10 +2,11 @@ package fr.xgouchet.axml;
 
 import org.w3c.dom.Document;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -14,6 +15,8 @@ import javax.xml.parsers.ParserConfigurationException;
 public class CompressedXmlParser {
 
     public static final String TAG = "CXP";
+
+    public static boolean DEBUG = false;
 
     public static final int WORD_START_DOCUMENT = 0x00080003;
 
@@ -45,7 +48,7 @@ public class CompressedXmlParser {
             "pt", "in", "mm"};
 
     public CompressedXmlParser() {
-        mNamespaces = new HashMap<>();
+        mNamespaces = new LinkedHashMap<>();
     }
 
     /**
@@ -58,20 +61,31 @@ public class CompressedXmlParser {
     public void parse(final InputStream input,
                       final CompressedXmlParserListener listener) throws IOException {
 
+        if (input == null) {
+            throw new IllegalArgumentException(
+                    "input == null");
+        }
         if (listener == null) {
             throw new IllegalArgumentException(
-                    "CompressedXmlParser Listener can' be null");
+                    "CompressedXmlParser Listener can't be null");
         }
         mListener = listener;
-
-        // TODO is.available may not be accurate !!!
-        mData = new byte[input.available()];
-        input.read(mData);
+        mData = readAllBytesFromStream(input);
         input.close();
 
         // parseCompressedHeader();
         parseCompressedXml();
+    }
 
+    private byte[] readAllBytesFromStream(InputStream input) throws IOException {
+        byte[] buffer = new byte[8192];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            out.write(buffer, 0, read);
+        }
+        out.flush();
+        return out.toByteArray();
     }
 
     /**
@@ -102,36 +116,44 @@ public class CompressedXmlParser {
             word0 = getLEWord(mParserOffset);
             switch (word0) {
                 case WORD_START_DOCUMENT:
+                    debug("WORD_START_DOCUMENT");
                     parseStartDocument();
                     break;
                 case WORD_STRING_TABLE:
+                    debug("WORD_STRING_TABLE");
                     parseStringTable();
                     break;
                 case WORD_RES_TABLE:
+                    debug("WORD_RES_TABLE");
                     parseResourceTable();
                     break;
                 case WORD_START_NS:
+                    debug("WORD_START_NS");
                     parseNamespace(true);
                     break;
                 case WORD_END_NS:
+                    debug("WORD_END_NS");
                     parseNamespace(false);
                     break;
                 case WORD_START_TAG:
+                    debug("WORD_START_TAG");
                     parseStartTag();
                     break;
                 case WORD_END_TAG:
+                    debug("WORD_END_TAG");
                     parseEndTag();
                     break;
                 case WORD_TEXT:
+                    debug("WORD_TEXT");
                     parseText();
                     break;
                 case WORD_EOS:
+                    debug("WORD_EOS");
                     mListener.endDocument();
                     break;
                 default:
                     mParserOffset += WORD_SIZE;
-//				Log.w(TAG, "Unknown word 0x" + Integer.toHexString(word0)
-//						+ " @" + mParserOffset);
+                    debug("Unknown word 0x" + Integer.toHexString(word0) + " @" + mParserOffset);
                     break;
             }
         }
@@ -181,7 +203,7 @@ public class CompressedXmlParser {
         }
 
         if (styleOffset > 0) {
-//			Log.w(TAG, "Unread styles");
+            debug("Unread styles");
             for (int i = 0; i < mStylesCount; ++i) {
                 // TODO read the styles ???
             }
@@ -199,10 +221,8 @@ public class CompressedXmlParser {
      */
     private void parseResourceTable() {
         int chunk = getLEWord(mParserOffset + (1 * WORD_SIZE));
+        debug(chunk);
         mResCount = (chunk / 4);
-        if (mResCount != 0) {
-            mResCount -= 2;
-        }
 
         mResourcesIds = new int[mResCount];
         for (int i = 0; i < mResCount; ++i) {
@@ -507,7 +527,7 @@ public class CompressedXmlParser {
     private CompressedXmlParserListener mListener;
 
     // Internal
-    private Map<String, String> mNamespaces;
+    private final Map<String, String> mNamespaces;
     private byte[] mData;
 
     private String[] mStringsTable;
@@ -515,4 +535,9 @@ public class CompressedXmlParser {
     private int mStringsCount, mStylesCount, mResCount;
     private int mParserOffset;
 
+    private static void debug(Object o) {
+        if (DEBUG) {
+            System.out.println(o);
+        }
+    }
 }
