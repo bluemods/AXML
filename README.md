@@ -20,7 +20,7 @@ To add this library to your build, add the following line to your project's grad
 Then you can just add the dependency like that : 
 
 	dependencies {
-		compile 'com.github.xgouchet:AXML:v1.0'
+		compile 'com.github.bluemods:AXML:1.1'
 	}
 
 USAGE
